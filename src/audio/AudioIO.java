@@ -66,13 +66,50 @@ public class AudioIO {
      * Return a line that's appropriate for playing sound to a loudspeaker.
      */
     public static SourceDataLine obtainAudioOutput(String mixerName, int sampleRate) {
+        Mixer.Info mixerInfo = getMixerInfo(mixerName);
+        if (mixerInfo != null) {
+            try {
+                Mixer mixer = AudioSystem.getMixer(mixerInfo);
+                Line.Info[] targetLineInfoArray = mixer.getTargetLineInfo();
+                for (Line.Info targetLineInfo : targetLineInfoArray) {
+                    if (targetLineInfo instanceof DataLine.Info) {
+                        DataLine.Info dataLineInfo = (DataLine.Info) targetLineInfo;
 
-        Mixer.Info info=getMixerInfo(mixerName);
-        SourceDataLine line=AudioSystem.getSourceDataLine(sampleRate,info);
-        return line;
+                        AudioFormat format = new AudioFormat(sampleRate, 8, 1, true, true);
+
+                        if (dataLineInfo.isFormatSupported(format)) {
+                            SourceDataLine line = (SourceDataLine) mixer.getLine(dataLineInfo);
+                            line.open(format);
+                            return line;
+                        }
+                    }
+                }
+            } catch (LineUnavailableException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.err.println("Mixer not found: " + mixerName);
+        }
+        return null;
     }
+
+
 
     public static void main(String[] args) {
-        TargetDataLine line = obtainAudioInput("USB Audio Device",8000);
+        TargetDataLine lineInput = obtainAudioInput("USB Audio Device",8000);
+        SourceDataLine lineOutput = obtainAudioOutput("USB Audio Device",8000);
+        if (lineInput != null) {
+            // Now you can use the TargetDataLine for recording
+            // ...
+        } else {
+            System.err.println("Failed to obtain audio input line.");
+        }
+        if (lineOutput != null) {
+            // Now you can use the SourceDataLine for playing
+            // ...
+        } else {
+            System.err.println("Failed to obtain audio output line.");
+        }
     }
+
 }
