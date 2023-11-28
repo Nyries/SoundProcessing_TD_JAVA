@@ -1,4 +1,6 @@
 package ui;
 
-public class VuMeter {
+import java.awt.*;
+
+public class VuMeter extends Canvas {
 }
