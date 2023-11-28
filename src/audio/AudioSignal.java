@@ -27,6 +27,10 @@ public class AudioSignal {
         other=this;
     }
 
+    public double[] getSignalData() {
+        return this.sampleBuffer;
+    }
+
     /**
      * Fills the buffer content from the given input. Byte's are converted on the fly to double's.
      * @return false if at end of stream
