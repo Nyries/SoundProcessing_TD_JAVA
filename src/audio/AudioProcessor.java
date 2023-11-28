@@ -9,10 +9,18 @@ public class AudioProcessor implements Runnable {
     private TargetDataLine audioInput;
     private SourceDataLine audioOutput;
     private boolean isThreadRunning; // makes it possible to "terminate" thread
+
     /** Creates an AudioProcessor that takes input from the given TargetDataLine, and plays back
  * to the given SourceDataLine.
  * @param frameSize the size of the audio buffer. The shorter, the lower the latency. */
-        public AudioProcessor(TargetDataLine audioInput, SourceDataLine audioOutput, int frameSize) { }
+
+    public AudioProcessor(TargetDataLine audioInput, SourceDataLine audioOutput, int frameSize) {
+        this.inputSignal=new AudioSignal(frameSize);
+        this.outputSignal=new AudioSignal(frameSize);
+        this.audioInput=audioInput;
+        this.audioOutput=audioOutput;
+
+    }
 
         /** Audio processing thread code. Basically an infinite loop that continuously fills the sample
  * buffer with audio data fed by a TargetDataLine and then applies some audio effect, if any,
@@ -22,7 +30,7 @@ public class AudioProcessor implements Runnable {
         isThreadRunning = true;
         while (isThreadRunning) {
             inputSignal.recordFrom(audioInput);
-
+            outputSignal=inputSignal;
             // your job: copy inputSignal to outputSignal with some audio effect
 
             outputSignal.playTo(audioOutput);
