@@ -65,7 +65,7 @@ public class AudioIO {
     /**
      * Return a line that's appropriate for playing sound to a loudspeaker.
      */
-    public static SourceDataLine obtainAudioOutput(String mixerName, AudioFormat sampleRate) {
+    public static SourceDataLine obtainAudioOutput(String mixerName, int sampleRate) {
 
         Mixer.Info info=getMixerInfo(mixerName);
         SourceDataLine line=AudioSystem.getSourceDataLine(sampleRate,info);
