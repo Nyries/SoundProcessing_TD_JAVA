@@ -21,7 +21,25 @@ public class AudioProcessor implements Runnable {
         this.audioOutput=audioOutput;
 
     }
+    public void startAudioProcessing() {
+        // Check if the thread is not already running to avoid starting multiple threads
+        if (!isThreadRunning) {
+            // Start the audio processing thread
+            new Thread(this).start();
+        }
+    }
 
+    public void stopAudioProcessing() {
+        // Terminate the audio processing thread
+        terminateAudioThread();
+
+        // Wait for the thread to finish (optional)
+        try {
+            Thread.currentThread().join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
         /** Audio processing thread code. Basically an infinite loop that continuously fills the sample
  * buffer with audio data fed by a TargetDataLine and then applies some audio effect, if any,
  * and finally copies data back to a SourceDataLine.*/
@@ -38,17 +56,19 @@ public class AudioProcessor implements Runnable {
         }
 
         /** Tells the thread loop to break as soon as possible. This is an asynchronous process. */
-        public void terminateAudioThread() {  }
+        public void terminateAudioThread() {
+            isThreadRunning=false;
+        }
 
         // todo here: all getters and setters
 
         /* an example of a possible test code */
         public static void main(String[] args) {
-        TargetDataLine inLine = AudioIO.obtainAudioInput("Default Audio Device", 16000);
-        SourceDataLine outLine = AudioIO.obtainAudioOutput("Default Audio Device", 16000);
-        AudioProcessor as = new AudioProcessor(inLine, outLine, 1024);
-        //inLine.open(); inLine.start(); outLine.open(); outLine.start();
-        new Thread(as).start();
-        System.out.println("A new thread has been created!");
+            TargetDataLine inLine = AudioIO.obtainAudioInput("Default Audio Device", 16000);
+            SourceDataLine outLine = AudioIO.obtainAudioOutput("Default Audio Device", 16000);
+            AudioProcessor as = new AudioProcessor(inLine, outLine, 1024);
+            //inLine.open(); inLine.start(); outLine.open(); outLine.start();
+            new Thread(as).start();
+            System.out.println("A new thread has been created!");
         }
 }

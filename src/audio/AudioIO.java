@@ -93,8 +93,24 @@ public class AudioIO {
         return null;
     }
 
+    public static void startAudioProcessing(String inputMixer, String outputMixer, int sampleRate, int frameSize) {
+        TargetDataLine inputLine = obtainAudioInput(inputMixer, sampleRate);
+        SourceDataLine outputLine = obtainAudioOutput(outputMixer, sampleRate);
+        AudioProcessor audioProcessor = new AudioProcessor(inputLine, outputLine, frameSize);
 
+        // Start audio processing
+        audioProcessor.startAudioProcessing();
+        System.out.println("Audio processing started.");
 
+        // ... (do some work or application logic)
+
+        // Stop audio processing
+        audioProcessor.stopAudioProcessing();
+        System.out.println("Audio processing stopped.");
+    }
+    void stopAudioProcessing(AudioProcessor audioProcessor){
+        audioProcessor.stopAudioProcessing();
+    }
     public static void main(String[] args) {
         TargetDataLine lineInput = obtainAudioInput("USB Audio Device",8000);
         SourceDataLine lineOutput = obtainAudioOutput("USB Audio Device",8000);
