@@ -19,4 +19,22 @@ public class SignalView extends LineChart<Number, Number> {
     public void setAudiosignal(AudioSignal audiosignal) {
         this.audiosignal = audiosignal;
     }
+
+    public void updateData() {
+        if (audiosignal == null) {
+            // Handle the case when audioSignal is not set
+            return;
+        }
+
+        // Clear previous data
+        series.getData().clear();
+
+        // Get the audio signal data
+        double[] signalData = audiosignal.getSignalData();
+
+        // Populate the series with data points
+        for (int i = 0; i < signalData.length; i++) {
+            series.getData().add(new XYChart.Data<>(i, signalData[i]));
+        }
+    }
 }
