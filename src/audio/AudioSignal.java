@@ -2,6 +2,10 @@ package audio;
 
 import javax.sound.sampled.*;
 
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
+
 /** A container for an audio signal backed by a double buffer so as to allow floating point calculation
  2 * for signal processing and avoid saturation effects. Samples are 16 bit wide in this implementation. */
 public class AudioSignal {
@@ -58,6 +62,16 @@ public class AudioSignal {
         if (audioOutput.write(byteBuffer, 0, byteBuffer.length) == -1) return false;
         // ... TODO : dBlevel = update signal level in dB here ...
         return true;
+    }
+
+    public Complex[] computeFFT() {
+        int n = sampleBuffer.length;
+
+        // Use Apache Commons Math library for FFT
+        FastFourierTransformer transformer = new FastFourierTransformer();
+        Complex[] transformed = transformer.transform(sampleBuffer, TransformType.FORWARD);
+
+        return transformed;
     }
 
     // your job: add getters and setters ...
