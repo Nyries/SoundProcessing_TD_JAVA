@@ -2,7 +2,7 @@ package audio;
 
 import javax.sound.sampled.*;
 
-import org.apache.commons.math3.complex.Complex;
+/**import org.apache.commons.math3.complex.Complex;
 import org.apache.commons.math3.transform.FastFourierTransformer;
 import org.apache.commons.math3.transform.TransformType;
 
@@ -19,7 +19,7 @@ public class AudioSignal {
      * @param frameSize the number of samples in one audio frame
      */
     public AudioSignal(int frameSize) {
-        frameSize=this.sampleBuffer.length;
+        this.sampleBuffer = new double[frameSize];
     }
 
     /**
@@ -28,7 +28,11 @@ public class AudioSignal {
      * @param other other.length must not be lower than the length of this signal.
      */
     public void setFrom(AudioSignal other) {
-        other=this;
+        if(other.sampleBuffer.length>=this.sampleBuffer.length){
+            System.arraycopy(other.sampleBuffer,0,this.sampleBuffer,0,this.sampleBuffer.length);
+        } else {
+            throw new IllegalArgumentException("The other signal length is lower than the length of this signal.");
+        }
     }
 
     public double[] getSignalData() {
@@ -45,15 +49,15 @@ public class AudioSignal {
         for (int i = 0; i < sampleBuffer.length; i++)
             sampleBuffer[i] = ((byteBuffer[2 * i] << 8) + byteBuffer[2 * i + 1]) / 32768.0; // big endian
         // ... TODO : dBlevel = update signal level in dB here ...
+        updateSignalLevel();
         return true;
     }
-
     /**
      * Plays the buffer content to the given output.
      *
      * @return false if at end of stream
      */
-    public boolean playTo(SourceDataLine audioOutput) {
+    public boolean playTo(SourceDataLine audioOutput){
         byte[] byteBuffer = new byte[sampleBuffer.length * 2]; // 16 bit samples
         for (int i = 0; i < byteBuffer.length; i+=2) {
             byteBuffer[i] = (byte)(sampleBuffer[i]*256);
@@ -63,8 +67,31 @@ public class AudioSignal {
         // ... TODO : dBlevel = update signal level in dB here ...
         return true;
     }
+    private void updateSignalLevel(){
+        double sum=0.0;
+        for (double sample: sampleBuffer){
+            sum+=sample*sample;
+        }
+        double rms = Math.sqrt((sum/ sampleBuffer.length));
+        dBlevel=20.0*Math.log10(rms);
+    }
+    public void setSample(int i, double value){
+        if (i>=0 && i< sampleBuffer.length){
+            sampleBuffer[i]=value;
+        }
+    }
+    public double getSample(int i){
+        return (i>=0 && i< sampleBuffer.length) ? sampleBuffer[i]:0.0;
+    }
+    public double getdBlevel(){
+        return dBlevel;
+    }
 
-    public Complex[] computeFFT() {
+    public int getFrameSize(){
+        return sampleBuffer.length;
+    }
+
+    /**public Complex[] computeFFT() {
         int n = sampleBuffer.length;
 
         // Use Apache Commons Math library for FFT
@@ -72,7 +99,7 @@ public class AudioSignal {
         Complex[] transformed = transformer.transform(sampleBuffer, TransformType.FORWARD);
 
         return transformed;
-    }
+    }*/
 
     // your job: add getters and setters ...
     // double getSample(int i)
