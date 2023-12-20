@@ -64,15 +64,6 @@ public class AudioSignal {
         return true;
     }
 
-    public Complex[] computeFFT() {
-        int n = sampleBuffer.length;
-
-        // Use Apache Commons Math library for FFT
-        FastFourierTransformer transformer = new FastFourierTransformer();
-        Complex[] transformed = transformer.transform(sampleBuffer, TransformType.FORWARD);
-
-        return transformed;
-    }
 
     // your job: add getters and setters ...
     // double getSample(int i)
