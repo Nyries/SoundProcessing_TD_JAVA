@@ -1,6 +1,7 @@
 package ui;
 
 import audio.AudioSignal;
+import javafx.animation.AnimationTimer;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
