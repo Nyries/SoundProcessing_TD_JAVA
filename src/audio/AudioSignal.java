@@ -1,111 +1,139 @@
 package audio;
 
 import javax.sound.sampled.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
-import org.apache.commons.math3.complex.Complex;
-import org.apache.commons.math3.transform.FastFourierTransformer;
-import org.apache.commons.math3.transform.TransformType;
+import ui.SignalView;
+import ui.VuMeter;
 
-/** A container for an audio signal backed by a double buffer so as to allow floating point calculation
- 2 * for signal processing and avoid saturation effects. Samples are 16 bit wide in this implementation. */
 public class AudioSignal {
 
-    private double[] sampleBuffer; // floating point representation of audio samples
-    private double dBlevel; // current signal level
+    private TargetDataLine targetDataLine;
+    private ByteArrayOutputStream byteArrayOutputStream;
+    private boolean recording = false;
+    private VuMeter vuMeter;
+    private SignalView signalView;
 
-    /**
-     * Construct an AudioSignal that may contain up to "frameSize" samples.
-     *
-     * @param frameSize the number of samples in one audio frame
-     */
-    public AudioSignal(int frameSize) {
-        this.sampleBuffer = new double[frameSize];
+
+    public AudioSignal() {
+        initializeAudio();
     }
 
-    /**
-     * Sets the content of this signal from another signal.
-     *
-     * @param other other.length must not be lower than the length of this signal.
-     */
-    public void setFrom(AudioSignal other) {
-        if(other.sampleBuffer.length>=this.sampleBuffer.length){
-            System.arraycopy(other.sampleBuffer,0,this.sampleBuffer,0,this.sampleBuffer.length);
-        } else {
-            throw new IllegalArgumentException("The other signal length is lower than the length of this signal.");
+    private void initializeAudio() {
+        try {
+            vuMeter = new VuMeter();
+            signalView = new SignalView();
+            AudioFormat format = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, 44100, 16, 2, 4, 44100, false);
+            DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
+
+            if (!AudioSystem.isLineSupported(info)) {
+                System.out.println("Line not supported");
+                System.exit(0);
+            }
+
+            targetDataLine = (TargetDataLine) AudioSystem.getLine(info);
+            targetDataLine.open(format);
+
+            byteArrayOutputStream = new ByteArrayOutputStream();
+
+        } catch (LineUnavailableException e) {
+            e.printStackTrace();
         }
     }
 
-    public double[] getSignalData() {
-        return this.sampleBuffer;
+    public void startCapture() {
+        targetDataLine.start();
+        new Thread(this::captureAudio).start();
     }
 
-    /**
-     * Fills the buffer content from the given input. Byte's are converted on the fly to double's.
-     * @return false if at end of stream
-     */
-    public boolean recordFrom(TargetDataLine audioInput) {
-        byte[] byteBuffer = new byte[sampleBuffer.length * 2]; // 16 bit samples
-        if (audioInput.read(byteBuffer, 0, byteBuffer.length) == -1) return false;
-        for (int i = 0; i < sampleBuffer.length; i++)
-            sampleBuffer[i] = ((byteBuffer[2 * i] << 8) + byteBuffer[2 * i + 1]) / 32768.0; // big endian
-        // ... TODO : dBlevel = update signal level in dB here ...
-        updateSignalLevel();
-        return true;
+    public void stopCapture() {
+        targetDataLine.stop();
     }
 
-    /**
-     * Plays the buffer content to the given output.
-     *
-     * @return false if at end of stream
-     */
-    public boolean playTo(SourceDataLine audioOutput){
-        byte[] byteBuffer = new byte[sampleBuffer.length * 2]; // 16 bit samples
-        for (int i = 0; i < byteBuffer.length; i+=2) {
-            byteBuffer[i] = (byte)(sampleBuffer[i]*256);
-            byteBuffer[i+1] = (byte)(sampleBuffer[i]*32768%256);
-        }
-        if (audioOutput.write(byteBuffer, 0, byteBuffer.length) == -1) return false;
-        // ... TODO : dBlevel = update signal level in dB here ...
-        return true;
-    }
-    private void updateSignalLevel(){
-        double sum=0.0;
-        for (double sample: sampleBuffer){
-            sum+=sample*sample;
-        }
-        double rms = Math.sqrt((sum/ sampleBuffer.length));
-        dBlevel=20.0*Math.log10(rms);
-    }
-    public void setSample(int i, double value){
-        if (i>=0 && i< sampleBuffer.length){
-            sampleBuffer[i]=value;
+    public void toggleRecording() {
+        recording = !recording;
+        if (recording) {
+            byteArrayOutputStream.reset(); // Reset the buffer when starting recording
         }
     }
-    public double getSample(int i){
-        return (i>=0 && i< sampleBuffer.length) ? sampleBuffer[i]:0.0;
-    }
-    public double getdBlevel(){
-        return dBlevel;
-    }
 
-    public int getFrameSize(){
-        return sampleBuffer.length;
+    public boolean isRecording() {
+        return recording;
+    }
+    public byte[] getRecordedAudio() {
+        return byteArrayOutputStream.toByteArray();
     }
 
-    /**public Complex[] computeFFT() {
-        int n = sampleBuffer.length;
+    private void captureAudio() {
+        byte[] buffer = new byte[1024];
 
-        // Use Apache Commons Math library for FFT
-        FastFourierTransformer transformer = new FastFourierTransformer();
-        Complex[] transformed = transformer.transform(sampleBuffer, TransformType.FORWARD);
+        while (true) {
+            int bytesRead = targetDataLine.read(buffer, 0, buffer.length);
 
-        return transformed;
-    }*/
+            double volume = calculateVolume(buffer,bytesRead);
 
-    // your job: add getters and setters ...
-    // double getSample(int i)
-    // void setSample(int i, double value)
-    // double getdBLevel()
-    // int getFrameSize()
-    // Can be implemented
+            // Update the volume property in the JavaFX application thread
+            javafx.application.Platform.runLater(() -> vuMeter.setVolume(volume));
+
+            if (recording) {
+                try {
+                    byteArrayOutputStream.write(buffer, 0, bytesRead);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    private double calculateVolume(byte[] buffer, int bytesRead) {
+        long sum = 0;
+
+        // Conversion des octets en échantillons audio 16 bits
+        for (int i = 0; i < bytesRead; i += 2) {
+            short sample = (short) ((buffer[i + 1] << 8) | (buffer[i] & 0xFF));
+            sum += Math.abs(sample)*2;
+        }
+
+        // Calcul de la moyenne des valeurs absolues des échantillons audio
+        double average = (double) sum / (bytesRead / 2);
+
+        // Normalisation de la moyenne dans la plage [0, 1]
+        return average / Short.MAX_VALUE;
+    }
+
+    public void playAudio(byte[] audioData) {
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(audioData);
+        AudioInputStream audioInputStream = new AudioInputStream(byteArrayInputStream, targetDataLine.getFormat(), audioData.length / 4);
+
+        try {
+            SourceDataLine line = AudioSystem.getSourceDataLine(audioInputStream.getFormat());
+            line.open(audioInputStream.getFormat());
+            line.start();
+
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+
+            while ((bytesRead = audioInputStream.read(buffer, 0, buffer.length)) != -1) {
+                line.write(buffer, 0, bytesRead);
+                double volume = calculateVolume(buffer,bytesRead);
+
+                // Update the volume property in the JavaFX application thread
+                javafx.application.Platform.runLater(() -> vuMeter.setVolume(volume));
+            }
+
+            line.drain();
+            line.close();
+
+        } catch (LineUnavailableException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public VuMeter getVuMeter() {
+        return vuMeter;
+    }
+
+    public SignalView getSignalView() {
+        return signalView;
+    }
 }
